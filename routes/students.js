@@ -5,7 +5,7 @@ const requireAuth = require('../middleware/auth');
 
 router.get('/', requireAuth, async (req, res) => {
     try {
-        const students = await Student.find();
+        const students = await Student.find().populate('createdBy', 'name email');
         res.json(students);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -44,6 +44,28 @@ router.delete('/:id', requireAuth, async (req, res) => { // Added requireAuth
             return res.status(404).json({ error: 'Student not found' });
         }
         res.json({ message: 'Student deleted successfully', deletedStudent });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.get('/stats', async (req, res) => {
+    try {
+        const stats = await Student.aggregate([
+            { $match: { status: 'active' } }, 
+            
+            { 
+                $group: { 
+                    _id: '$department', 
+                    totalStudents: { $sum: 1 },
+                    avgGpa: { $avg: '$gpa' }
+                } 
+            },
+            
+            { $sort: { totalStudents: -1 } }
+        ]);
+
+        res.json(stats);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
